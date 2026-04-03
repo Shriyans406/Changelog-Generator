@@ -1,18 +1,28 @@
 #!/bin/bash
 
+# Get script directory and project root
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+
 # Output file
-OUTPUT="../data/changes.jsonl"
+OUTPUT="$PROJECT_ROOT/data/changes.jsonl"
+
+# Create data directory if not exists
+mkdir -p "$PROJECT_ROOT/data"
 
 # Clear old file
-> $OUTPUT
+> "$OUTPUT"
 
-# Get git log (hash | timestamp | message)
+# Get git log
 git log --pretty=format:'%H|%ai|%s' | while IFS="|" read -r hash timestamp message
 do
-    # For each commit, get files changed
-    git diff-tree --no-commit-id --name-status -r $hash | while read status file
+    # Convert timestamp to ISO format
+    timestamp=$(date -d "$timestamp" -u +"%Y-%m-%dT%H:%M:%SZ")
+
+    # Get changed files
+    git diff-tree --no-commit-id --name-status -r "$hash" | while read status file
     do
-        # Convert git status to readable type
+        # Map status
         if [ "$status" = "A" ]; then
             type="Added"
         elif [ "$status" = "M" ]; then
@@ -23,8 +33,8 @@ do
             type="Modified"
         fi
 
-        # Print JSON line
-        echo "{\"file\":\"$file\",\"timestamp\":\"$timestamp\",\"type\":\"$type\",\"description\":\"$message\",\"hash\":\"$hash\"}" >> $OUTPUT
+        # Output JSON line
+        echo "{\"file\":\"$file\",\"timestamp\":\"$timestamp\",\"type\":\"$type\",\"description\":\"$message\",\"hash\":\"$hash\"}" >> "$OUTPUT"
     done
 done
 
