@@ -1,0 +1,6 @@
+bash ~/projects/changelog-generator/bash/collector.sh ~/projects/changelog-generator/test-repo
+
+cat ~/projects/changelog-generator/data/changes.jsonl
+
+cat ~/projects/changelog-generator/data/changes.jsonl | jq .
+
