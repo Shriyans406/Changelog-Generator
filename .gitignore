@@ -1,0 +1,29 @@
+# --- Rust (rust-core) ---
+# Ignore the entire target directory where compiled binaries and dependencies live
+rust-core/target/
+
+# --- Python ---
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+# Virtual Environments
+venv/
+.venv/
+env/
+
+# --- Data & Logs ---
+# If changes.jsonl is a generated output or a large dataset, ignore it
+# data/*.jsonl
+# data/*.log
+
+# --- OS Specific ---
+.DS_Store
+Thumbs.db
+.directory
+
+# --- IDEs ---
+.vscode/
+.idea/
+*.swp
+*.swo
