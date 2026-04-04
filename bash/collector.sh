@@ -7,22 +7,45 @@ PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 # Output file
 OUTPUT="$PROJECT_ROOT/data/changes.jsonl"
 
-# Create data directory if not exists
+# Create data directory
 mkdir -p "$PROJECT_ROOT/data"
 
-# Clear old file
+# Get repo path from argument
+REPO_PATH="$1"
+
+# Check if argument provided
+if [ -z "$REPO_PATH" ]; then
+    echo "Error: Please provide a git repository path"
+    echo "Usage: ./collector.sh /path/to/repo"
+    exit 1
+fi
+
+# Check if directory exists
+if [ ! -d "$REPO_PATH" ]; then
+    echo "Error: Directory does not exist"
+    exit 1
+fi
+
+# Check if it's a git repo
+if [ ! -d "$REPO_PATH/.git" ]; then
+    echo "Error: Not a git repository"
+    exit 1
+fi
+
+# Move into repo
+cd "$REPO_PATH" || exit
+
+# Clear old output
 > "$OUTPUT"
 
-# Get git log
+# Extract git data
 git log --pretty=format:'%H|%ai|%s' | while IFS="|" read -r hash timestamp message
 do
-    # Convert timestamp to ISO format
+    # Convert timestamp
     timestamp=$(date -d "$timestamp" -u +"%Y-%m-%dT%H:%M:%SZ")
 
-    # Get changed files
-    git diff-tree --no-commit-id --name-status -r "$hash" | while read status file
+    git diff-tree --no-commit-id --name-status -r --root "$hash" | while read status file
     do
-        # Map status
         if [ "$status" = "A" ]; then
             type="Added"
         elif [ "$status" = "M" ]; then
@@ -33,7 +56,6 @@ do
             type="Modified"
         fi
 
-        # Output JSON line
         echo "{\"file\":\"$file\",\"timestamp\":\"$timestamp\",\"type\":\"$type\",\"description\":\"$message\",\"hash\":\"$hash\"}" >> "$OUTPUT"
     done
 done
