@@ -3,6 +3,7 @@ use chrono::{DateTime, Utc};
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::collections::HashMap;
+use strsim::jaro_winkler;
 
 // =========================
 // DEFINE STRUCT
@@ -23,6 +24,7 @@ struct Change {
 #[derive(Debug)]
 struct Cluster {
     changes: Vec<Change>,
+    summary: String,
 }
 
 // =========================
@@ -92,6 +94,7 @@ fn main() {
     for change in deduped_changes {
         if clusters.is_empty() {
             clusters.push(Cluster {
+                summary: change.description.clone(),
                 changes: vec![change],
             });
             continue;
@@ -103,9 +106,22 @@ fn main() {
         let time_diff = change.timestamp - last_change.timestamp;
 
         if time_diff <= threshold {
-            last_cluster.changes.push(change);
+            let similarity = jaro_winkler(
+    &last_cluster.summary,
+    &change.description
+);
+
+if similarity >= 0.80 {
+    last_cluster.changes.push(change);
+} else {
+    clusters.push(Cluster {
+        summary: change.description.clone(),
+        changes: vec![change],
+    });
+}
         } else {
             clusters.push(Cluster {
+                summary: change.description.clone(),
                 changes: vec![change],
             });
         }
@@ -116,10 +132,11 @@ fn main() {
     println!("Total clusters: {}", clusters.len());
 
     for (i, cluster) in clusters.iter().enumerate() {
-        println!("\nCluster {}", i + 1);
+        println!("\nCluster {} → {}", i + 1, cluster.summary);
 
         for change in &cluster.changes {
             println!("{} - {}", change.file, change.timestamp);
         }
     }
+
 }
