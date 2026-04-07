@@ -1,6 +1,6 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
-use std::fs::File;
+use std::fs::{self, File};
 use std::io::{BufRead, BufReader};
 use std::collections::HashMap;
 use strsim::jaro_winkler;
@@ -8,7 +8,7 @@ use strsim::jaro_winkler;
 // =========================
 // CHANGE STRUCT
 // =========================
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 struct Change {
     file: String,
     timestamp: DateTime<Utc>,
@@ -19,9 +19,9 @@ struct Change {
 }
 
 // =========================
-// CLUSTER STRUCT (FINAL)
+// CLUSTER STRUCT
 // =========================
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 struct Cluster {
     changes: Vec<Change>,
     summary: String,
@@ -59,13 +59,6 @@ fn main() {
     // =========================
     changes.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
 
-    println!("--- Raw Sorted Data ---");
-    for change in &changes {
-        println!("{} - {}", change.file, change.timestamp);
-    }
-
-    println!("\nTotal changes loaded: {}", changes.len());
-
     // =========================
     // STEP 3: DEDUPLICATION
     // =========================
@@ -73,11 +66,6 @@ fn main() {
 
     for change in changes {
         unique_changes.entry(change.file.clone()).or_insert(change);
-    }
-
-    println!("\n--- After Deduplication ---");
-    for (file, change) in &unique_changes {
-        println!("{} -> {}", file, change.timestamp);
     }
 
     // =========================
@@ -94,7 +82,7 @@ fn main() {
     deduped_changes.sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
 
     // =========================
-    // STEP 6: CLUSTERING
+    // STEP 6: CLUSTERING (TIME + FUZZY)
     // =========================
     let mut clusters: Vec<Cluster> = Vec::new();
     let threshold = chrono::Duration::minutes(30);
@@ -150,21 +138,13 @@ fn main() {
     }
 
     // =========================
-    // STEP 7: OUTPUT
+    // STEP 7: OUTPUT CLEAN JSON
     // =========================
-    println!("\n--- Clusters Formed ---");
-    println!("Total clusters: {}", clusters.len());
+    let json_output = serde_json::to_string_pretty(&clusters)
+        .expect("Failed to serialize");
 
-    for (i, cluster) in clusters.iter().enumerate() {
-        println!("\n============================");
-        println!("Cluster {}", i + 1);
-        println!("Summary: {}", cluster.summary);
-        println!("Confidence: {:.2}", cluster.confidence);
-        println!("Total Changes: {}", cluster.changes.len());
-        println!("Files:");
+    fs::write("../data/output.json", &json_output)
+        .expect("Unable to write file");
 
-        for change in &cluster.changes {
-            println!(" - {}", change.file);
-        }
-    }
+    println!("✅ JSON written to ../data/output.json");
 }
