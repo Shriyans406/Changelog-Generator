@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use strsim::jaro_winkler;
 
 // =========================
-// DEFINE STRUCT
+// CHANGE STRUCT
 // =========================
 #[derive(Debug, Deserialize)]
 struct Change {
@@ -19,12 +19,13 @@ struct Change {
 }
 
 // =========================
-// CLUSTER STRUCT (Phase 3C)
+// CLUSTER STRUCT (FINAL)
 // =========================
 #[derive(Debug)]
 struct Cluster {
     changes: Vec<Change>,
     summary: String,
+    confidence: f64,
 }
 
 // =========================
@@ -36,7 +37,9 @@ fn main() {
     let file = File::open(file_path).expect("Cannot open file");
     let reader = BufReader::new(file);
 
-    // STEP 1: Store all changes
+    // =========================
+    // STEP 1: LOAD DATA
+    // =========================
     let mut changes: Vec<Change> = Vec::new();
 
     for line in reader.lines() {
@@ -51,7 +54,9 @@ fn main() {
         }
     }
 
-    // STEP 2: Sort descending (latest first)
+    // =========================
+    // STEP 2: SORT (LATEST FIRST)
+    // =========================
     changes.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
 
     println!("--- Raw Sorted Data ---");
@@ -61,7 +66,9 @@ fn main() {
 
     println!("\nTotal changes loaded: {}", changes.len());
 
-    // STEP 3: Deduplication
+    // =========================
+    // STEP 3: DEDUPLICATION
+    // =========================
     let mut unique_changes: HashMap<String, Change> = HashMap::new();
 
     for change in changes {
@@ -74,28 +81,30 @@ fn main() {
     }
 
     // =========================
-    // PHASE 3C: TEMPORAL CLUSTERING
+    // STEP 4: CONVERT TO VECTOR
     // =========================
-
-    // STEP 4: Convert to vector
     let mut deduped_changes: Vec<Change> = unique_changes
         .into_iter()
         .map(|(_, change)| change)
         .collect();
 
-    // STEP 5: Sort ascending (oldest first)
+    // =========================
+    // STEP 5: SORT (OLDEST FIRST)
+    // =========================
     deduped_changes.sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
 
-    // STEP 6: Initialize clusters
+    // =========================
+    // STEP 6: CLUSTERING
+    // =========================
     let mut clusters: Vec<Cluster> = Vec::new();
     let threshold = chrono::Duration::minutes(30);
 
-    // STEP 7: Clustering logic
     for change in deduped_changes {
         if clusters.is_empty() {
             clusters.push(Cluster {
                 summary: change.description.clone(),
                 changes: vec![change],
+                confidence: 1.0,
             });
             continue;
         }
@@ -107,36 +116,55 @@ fn main() {
 
         if time_diff <= threshold {
             let similarity = jaro_winkler(
-    &last_cluster.summary,
-    &change.description
-);
+                &last_cluster.summary,
+                &change.description
+            );
 
-if similarity >= 0.80 {
-    last_cluster.changes.push(change);
-} else {
-    clusters.push(Cluster {
-        summary: change.description.clone(),
-        changes: vec![change],
-    });
-}
+            if similarity >= 0.80 {
+                // Improve summary (pick better description)
+                if change.description.len() > last_cluster.summary.len() {
+                    last_cluster.summary = change.description.clone();
+                }
+
+                last_cluster.changes.push(change);
+
+                // Update confidence
+                last_cluster.confidence =
+                    (last_cluster.confidence + similarity) / 2.0;
+
+            } else {
+                clusters.push(Cluster {
+                    summary: change.description.clone(),
+                    changes: vec![change],
+                    confidence: 1.0,
+                });
+            }
+
         } else {
             clusters.push(Cluster {
                 summary: change.description.clone(),
                 changes: vec![change],
+                confidence: 1.0,
             });
         }
     }
 
-    // STEP 8: Print clusters
+    // =========================
+    // STEP 7: OUTPUT
+    // =========================
     println!("\n--- Clusters Formed ---");
     println!("Total clusters: {}", clusters.len());
 
     for (i, cluster) in clusters.iter().enumerate() {
-        println!("\nCluster {} → {}", i + 1, cluster.summary);
+        println!("\n============================");
+        println!("Cluster {}", i + 1);
+        println!("Summary: {}", cluster.summary);
+        println!("Confidence: {:.2}", cluster.confidence);
+        println!("Total Changes: {}", cluster.changes.len());
+        println!("Files:");
 
         for change in &cluster.changes {
-            println!("{} - {}", change.file, change.timestamp);
+            println!(" - {}", change.file);
         }
     }
-
 }
