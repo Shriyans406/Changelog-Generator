@@ -2,6 +2,14 @@ import json
 from datetime import datetime
 from collections import defaultdict
 
+from openai import OpenAI
+import os
+
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+#USE_LLM = False
+
+
 # =========================
 # FILE PATHS
 # =========================
@@ -41,6 +49,47 @@ def categorize(summary):
     else:
         return "Other"
 
+
+
+
+summary_cache = {}
+
+def generate_smart_summary(cluster):
+    key = cluster["summary"]
+
+    if key in summary_cache:
+        return summary_cache[key]
+
+    try:
+        descriptions = [c["description"] for c in cluster["changes"]]
+        files = [c["file"] for c in cluster["changes"]]
+
+        prompt = f"""
+Summarize the following code changes in ONE short sentence.
+
+Descriptions:
+{descriptions}
+
+Files:
+{files}
+"""
+
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=50
+        )
+
+        result = response.choices[0].message.content.strip()
+
+        summary_cache[key] = result
+        return result
+
+    except Exception as e:
+        print("LLM error:", e)
+        return cluster["summary"]
 # =========================
 # GENERATE MARKDOWN
 # =========================
@@ -73,7 +122,7 @@ def generate_markdown(clusters):
             md += f"### {category}\n"
 
             for cluster in items:
-                summary = cluster["summary"]
+                summary = generate_smart_summary(cluster)
 
                 files = [c["file"] for c in cluster["changes"]]
                 file_list = ", ".join(files)
@@ -107,7 +156,7 @@ def main():
     markdown = generate_markdown(clusters)
     save_markdown(markdown)
 
-    print("CHANGELOG.md generated successfully!")
+    print("ssCHANGELOG.md generated successfully!")
 
 # =========================
 # RUN SCRIPT
