@@ -2,10 +2,9 @@ import json
 from datetime import datetime
 from collections import defaultdict
 
-from openai import OpenAI
-import os
+import google.generativeai as genai
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+genai.configure(api_key="AIzaSyA_q7CqsUhVjqo9o16IA2hydHqrd_a4zd8")
 
 #USE_LLM = False
 
@@ -74,22 +73,18 @@ Files:
 {files}
 """
 
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "user", "content": prompt}
-            ],
-            max_tokens=50
-        )
+        model = genai.GenerativeModel("gemini-1.5-flash")
+        response = model.generate_content(prompt)
 
-        result = response.choices[0].message.content.strip()
+        result = response.text.strip()
 
         summary_cache[key] = result
         return result
 
     except Exception as e:
-        print("LLM error:", e)
+        print("Gemini error:", e)
         return cluster["summary"]
+
 # =========================
 # GENERATE MARKDOWN
 # =========================
