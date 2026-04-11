@@ -1,10 +1,22 @@
 import json
+import os
 from datetime import datetime
 from collections import defaultdict
 
 import google.generativeai as genai
 
-genai.configure(api_key="AIzaSyA_q7CqsUhVjqo9o16IA2hydHqrd_a4zd8")
+# Load API key from .env file if it exists
+def load_env():
+    env_path = os.path.join(os.path.dirname(__file__), "..", ".env")
+    if os.path.exists(env_path):
+        with open(env_path, "r") as f:
+            for line in f:
+                if "=" in line and not line.startswith("#"):
+                    key, value = line.strip().split("=", 1)
+                    os.environ[key] = value
+
+load_env()
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
 #USE_LLM = False
 
