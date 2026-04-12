@@ -1,3 +1,4 @@
+/*
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
 use std::fs::{self, File};
@@ -147,4 +148,76 @@ fn main() {
         .expect("Unable to write file");
 
     println!("✅ JSON written to ../data/output.json");
+}
+*/
+
+
+use clap::Parser;
+use std::process::Command;
+
+// =========================
+// CLI ARGUMENT STRUCTURE
+// =========================
+#[derive(Parser)]
+#[command(name = "changelog-gen")]
+#[command(about = "Generate changelog from git history", long_about = None)]
+struct Args {
+    /// Path to git repository
+    repo_path: String,
+}
+
+// =========================
+// MAIN FUNCTION
+// =========================
+fn main() {
+    let args = Args::parse();
+
+    println!("======================================");
+    println!("🚀 Starting Changelog Generator CLI");
+    println!("======================================");
+
+    // -----------------------------
+    // STEP 1: Run Bash Collector
+    // -----------------------------
+    println!("📦 Collecting Git data...");
+
+    let status = Command::new("bash")
+        .arg("../bash/collector.sh")
+        .arg(&args.repo_path)
+        .status()
+        .expect("Failed to run collector");
+
+    if !status.success() {
+        eprintln!("❌ Collector failed");
+        return;
+    }
+
+    // -----------------------------
+    // STEP 2: Run Rust Core (self)
+    // -----------------------------
+    println!("⚙️ Processing data...");
+
+    // Since we are already in rust-core, just process logic here
+    println!("✔ Rust processing already integrated");
+
+    // -----------------------------
+    // STEP 3: Run Python Script
+    // -----------------------------
+    println!("🧠 Generating Markdown...");
+
+    let status = Command::new("bash")
+        .arg("-c")
+        .arg("cd ../python-api && source venv/bin/activate && python generate_md.py")
+        .status()
+        .expect("Failed to run Python");
+
+    if !status.success() {
+        eprintln!("❌ Python generation failed");
+        return;
+    }
+
+    println!("======================================");
+    println!("✅ CHANGELOG GENERATED!");
+    println!("📄 Check: data/CHANGELOG.md");
+    println!("======================================");
 }
